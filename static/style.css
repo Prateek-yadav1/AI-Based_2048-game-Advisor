@@ -1,0 +1,137 @@
+body {
+  background: #faf8ef;
+  font-family: "Segoe UI", Arial, sans-serif;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-size: 48px;
+  color: #776e65;
+  margin-top: 30px;
+}
+
+.score-board {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.score-box {
+  background: #bbada0;
+  padding: 10px 20px;
+  border-radius: 10px;
+  color: #f9f6f2;
+  text-align: center;
+}
+
+.score-box p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.score-box span {
+  display: block;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0 25px;
+}
+
+.buttons button {
+  background: linear-gradient(145deg, #a48b72, #8f7a66);
+  color: #fff8ef;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 0 #7b6654, 0 6px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease-in-out;
+  transform: translateY(0);
+}
+
+.buttons button:hover {
+  background: linear-gradient(145deg, #b99d81, #9c846c);
+  box-shadow: 0 5px 0 #7b6654, 0 8px 14px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.buttons button:active {
+  background: linear-gradient(145deg, #8f7a66, #7b6654);
+  box-shadow: 0 2px 0 #6b5647 inset;
+  transform: translateY(2px);
+}
+
+.buttons button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(143, 122, 102, 0.4);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, 100px);
+  grid-template-rows: repeat(4, 100px);
+  gap: 10px;
+  background: #bbada0;
+  border-radius: 10px;
+  width: max-content;
+  margin: 20px auto;
+  padding: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.tile {
+  width: 100px;
+  height: 100px;
+  background: #cdc1b4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30px;
+  font-weight: bold;
+  border-radius: 8px;
+  color: #776e65;
+  transition: all 0.15s ease;
+}
+/* --- Tile Animations --- */
+
+/* Smooth position change */
+.tile {
+  transition: transform 0.15s ease-in-out, background 0.15s, color 0.15s;
+}
+
+/* New tile pop animation */
+@keyframes pop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.new-tile {
+  animation: pop 0.2s ease-out;
+}
+
+/* Merge pulse animation */
+@keyframes mergePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.merged {
+  animation: mergePulse 0.2s ease-in-out;
+}
+
+.note {
+  color: #776e65;
+  font-size: 14px;
+}

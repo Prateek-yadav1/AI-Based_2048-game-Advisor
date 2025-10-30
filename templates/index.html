@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2048</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <h1>2048</h1>
+  <div class="score-board">
+    <div class="score-box">
+      <p>Score</p>
+      <span id="score">0</span>
+    </div>
+    <div class="buttons">
+      <button onclick="move('up')">Up</button>
+      <button onclick="move('left')">Left</button>
+      <button onclick="move('right')">Right</button>
+      <button onclick="move('down')">Down</button>
+      <button onclick="resetGame()">Reset</button>
+    </div>
+  </div>
+
+  <div class="board" id="board"></div>
+  <p class="note">Use arrow keys or buttons. New tiles appear after valid moves.</p>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
+
+
