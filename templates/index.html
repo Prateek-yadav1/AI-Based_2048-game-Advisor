@@ -3,16 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2048</title>
+  <title>2048 Game with AI Advisor</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
   <h1>2048</h1>
+
+  <!-- Scoreboard -->
   <div class="score-board">
     <div class="score-box">
       <p>Score</p>
       <span id="score">0</span>
     </div>
+
     <div class="buttons">
       <button onclick="move('up')">Up</button>
       <button onclick="move('left')">Left</button>
@@ -22,11 +25,39 @@
     </div>
   </div>
 
+  <!-- Game Board -->
   <div class="board" id="board"></div>
   <p class="note">Use arrow keys or buttons. New tiles appear after valid moves.</p>
 
+  <!-- AI Advisor Panel -->
+  <div id="ai-panel" class="ai-container">
+    <h2 class="ai-title">🤖 AI Game Advisor</h2>
+    
+    <div class="ai-best-move" id="ai-best">
+      Best Move: <span class="move-text">–</span>
+    </div>
+
+    <div class="ai-table-container" id="ai-scores">
+      <table class="ai-table">
+        <thead>
+          <tr><th>Move</th><th>Score</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="ai-explanation" id="ai-expl">
+      Click "Get Suggestion" to receive analysis from the AI advisor.
+    </div>
+
+    <div class="ai-controls">
+      <label for="ai-depth">Depth: </label>
+      <input id="ai-depth" type="number" min="1" max="4" value="3" />
+      <button id="get-ai">Get AI Suggestion</button>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
   <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
-
-

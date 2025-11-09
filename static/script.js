@@ -168,6 +168,73 @@ function isGameOver() {
 function resetGame() {
   initBoard();
 }
+async function requestAISuggestion() {
+  const depth = document.getElementById("ai-depth").value || 3;
+  const aiBest = document.getElementById("ai-best").querySelector(".move-text");
+  const aiScoresBody = document.querySelector(".ai-table tbody");
+  const aiExplanation = document.getElementById("ai-expl");
+
+  aiBest.textContent = "…"; // loading state
+  aiExplanation.textContent = "Analyzing possible moves... please wait.";
+document.getElementById("get-ai").addEventListener("click", async () => {
+  const depth = parseInt(document.getElementById("ai-depth").value);
+
+  // ✅ Get current board
+  const tiles = Array.from(document.querySelectorAll(".tile")).map(t => parseInt(t.textContent) || 0);
+  const board = [];
+  for (let i = 0; i < 4; i++) {
+    board.push(tiles.slice(i * 4, i * 4 + 4));
+  }
+
+  // ✅ Send to backend
+  const res = await fetch("/ai_suggest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ board, depth })
+  });
+  
+  const data = await res.json();
+
+  // ✅ Display suggestion
+  document.querySelector("#ai-best .move-text").textContent = data.best_move.toUpperCase();
+  const tbody = document.querySelector("#ai-scores tbody");
+  tbody.innerHTML = "";
+  for (const [move, score] of Object.entries(data.scores)) {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${move.toUpperCase()}</td><td>${score.toFixed(2)}</td>`;
+    tbody.appendChild(row);
+  }
+  document.getElementById("ai-expl").textContent = data.explanation;
+});
+
+  try {
+    const res = await fetch(`/ai_suggest?depth=${depth}`);
+    const data = await res.json();
+
+    aiBest.textContent = data.best_move ? data.best_move.toUpperCase() : "NONE";
+
+    // Update scores
+    aiScoresBody.innerHTML = "";
+    if (data.move_scores) {
+      Object.entries(data.move_scores).forEach(([move, score]) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${move.toUpperCase()}</td><td>${score}</td>`;
+        aiScoresBody.appendChild(row);
+      });
+    }
+
+    // Add explanation text
+    aiExplanation.textContent = data.explanation
+      ? `🤖 ${data.explanation}`
+      : "No valid moves found.";
+  } catch (err) {
+    aiBest.textContent = "-";
+    aiExplanation.textContent = "⚠️ Failed to fetch AI suggestion. Please retry.";
+  }
+}
+
+document.getElementById("get-ai").addEventListener("click", requestAISuggestion);
+
 
 // Keyboard controls
 document.addEventListener("keydown", (e) => {

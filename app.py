@@ -1,187 +1,232 @@
+# app.py
 from flask import Flask, render_template, jsonify, request
-import numpy as np
-import random
-
-app = Flask(__name__)
-
-# Global game state (single-player local server)
-board = np.zeros((4, 4), dtype=int)
-score = 0
-game_over = False
-
-# -------------------------
-# Helper functions
-# -------------------------
-def add_new_tile(b):
-    empty = list(zip(*np.where(b == 0)))
-    if not empty:
-        r, c = random.choice(empty)
-        b[r, c] = 4 if random.random() < 0.1 else 2
-        return (r, c, int(b[r, c]))
-    return None
-
-def compress_row(row):
-    """Move all non-zero to left, keep order."""
-    new = [x for x in row if x != 0]
-    new += [0] * (4 - len(new))
-    return new
-
-def merge_row(row):
-    """Merge a single row (left) and return new row and gained score."""
-    gained = 0
-    row = compress_row(row)
-    for i in range(3):
-        if row[i] != 0 and row[i] == row[i+1]:
-            row[i] *= 2
-            gained += row[i]
-            row[i+1] = 0
-    row = compress_row(row)
-    return row, gained
-
-def move_left_board(b):
-    """Return (new_board, gained_score, merged_positions) without mutating input."""
-    new = np.zeros_like(b)
-    gained = 0
-    merged_positions = []  # (r, c) positions where merges happened (target cell)
-    for r in range(4):
-        row = list(b[r])
-        new_row, g = merge_row(row)
-        gained += g
-        new[r] = new_row
-        # To detect merged positions: compare merged effect
-        # A simple way: if a cell in new_row equals sum of two equal adjacent in original,
-        # and that pair existed, mark the target index.
-        # We'll iterate original to detect merges:
-        j = 0
-        orig_nonzero = [x for x in row if x != 0]
-        k = 0
-        while k < len(orig_nonzero):
-            if k + 1 < len(orig_nonzero) and orig_nonzero[k] == orig_nonzero[k+1]:
-                # merged into column j
-                merged_positions.append((r, j))
-                j += 1
-                k += 2
-            else:
-                j += 1
-                k += 1
-    return new, gained, merged_positions
-
-def rotate_board(b, k):
-    return np.rot90(b, k)
-
-def apply_move(direction, add_tile=True):
-    """Apply move and return dict with board, moved flag, gained, added tile info, merged positions."""
-    global board, score, game_over
-    prev = board.copy()
-    if direction == 'left':
-        new_board, gained, merged = move_left_board(prev)
-    elif direction == 'right':
-        # rotate twice (180) to reuse left logic
-        rotated = rotate_board(prev, 2)
-        moved_board, gained, merged_rel = move_left_board(rotated)
-        new_board = rotate_board(moved_board, 2)
-        # map merged_rel coords: rotated 180 maps (r,c) -> (3-r,3-c)
-        merged = [(3 - r, 3 - c) for (r, c) in merged_rel]
-    elif direction == 'up':
-        rotated = rotate_board(prev, 1)  # 90 ccw
-        moved_board, gained, merged_rel = move_left_board(rotated)
-        new_board = rotate_board(moved_board, -1)
-        # mapping from rotated coords (r,c) to original: (r,c) -> (c, 3-r)
-        merged = [(c, 3 - r) for (r, c) in merged_rel]
-    elif direction == 'down':
-        rotated = rotate_board(prev, -1)  # 90 cw
-        moved_board, gained, merged_rel = move_left_board(rotated)
-        new_board = rotate_board(moved_board, 1)
-        # mapping from rotated coords (r,c) to original: (r,c) -> (3-c, r)
-        merged = [(3 - c, r) for (r, c) in merged_rel]
-    else:
-        return {"board": prev, "moved": False, "gained": 0, "added": None, "merged": []}
-
-    moved = not np.array_equal(prev, new_board)
-    added_info = None
-    if moved:
-        score += gained
-        board[:] = new_board
-        if add_tile:
-            added = add_new_tile(board)
-            added_info = added
-        # detect game over
-        if not can_move(board):
-            game_over = True
-    return {"board": board.copy(), "moved": moved, "gained": int(gained), "added": added_info, "merged": merged if moved else []}
-
-def can_move(b):
-    # if any zero -> can move
-    if np.any(b == 0):
-        return True
-    # check horizontal merges
-    for r in range(4):
-        for c in range(3):
-            if b[r, c] == b[r, c+1]:
-                return True
-    # check vertical merges
-    for c in range(4):
-        for r in range(3):
-            if b[r, c] == b[r+1, c]:
-                return True
-    return False
-
-def reset_game():
-    global board, score, game_over
-    board = np.zeros((4, 4), dtype=int)
-    score = 0
-    game_over = False
-    add_new_tile(board)
-    add_new_tile(board)
-
-# -------------------------
-# Routes
-# -------------------------
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/get_board')
-def get_board():
-    return jsonify({"board": board.tolist(), "score": int(score), "game_over": bool(game_over)})
-
-@app.route('/reset', methods=['GET'])
-def reset_route():
-    reset_game()
-    return jsonify({"board": board.tolist(), "score": int(score), "game_over": bool(game_over)})
-
-@app.route('/move', methods=['POST'])
-def move_route():
-    if not request.is_json:
-        return jsonify({"error": "expected json"}), 400
-    data = request.get_json()
-    direction = data.get("direction")
-    if direction not in ("left", "right", "up", "down"):
-        return jsonify({"error": "invalid direction"}), 400
-    result = apply_move(direction, add_tile=True)
-    response = {
-        "board": result["board"].tolist(),
-        "moved": bool(result["moved"]),
-        "gained": int(result["gained"]),
-        "added": result["added"],   # either None or (r,c,value)
-        "merged": result["merged"],
-        "score": int(score),
-        "game_over": bool(game_over)
-    }
-    return jsonify(response)
-
-# Initialize once on start
-reset_game()
-
-from flask import Flask, render_template
 from flask_cors import CORS
+import numpy as np, random, math
 
 app = Flask(__name__)
 CORS(app)
 
+# ----------------------------
+# Game state
+# ----------------------------
+board = np.zeros((4, 4), dtype=int)
+score = 0
+
+# ----------------------------
+# Tile mechanics
+# ----------------------------
+def add_new_tile(b):
+    empties = list(zip(*np.where(b == 0)))
+    if empties:
+        r, c = random.choice(empties)
+        b[r][c] = 2 if random.random() < 0.9 else 4
+
+
+def move_left(b):
+    global score
+    new = np.zeros_like(b)
+    for i in range(4):
+        row = [x for x in b[i] if x != 0]
+        merged = []
+        j = 0
+        while j < len(row):
+            if j + 1 < len(row) and row[j] == row[j + 1]:
+                val = row[j] * 2
+                score += val
+                merged.append(val)
+                j += 2
+            else:
+                merged.append(row[j])
+                j += 1
+        merged += [0] * (4 - len(merged))
+        new[i] = merged
+    return new
+
+
+def rotate_board(b, k):
+    return np.rot90(b, k)
+
+
+def move_board(b, direction, add_tile_flag=True):
+    prev = b.copy()
+    if direction == 'up':
+        temp = rotate_board(b, 1)
+        temp = move_left(temp)
+        new = rotate_board(temp, -1)
+    elif direction == 'down':
+        temp = rotate_board(b, -1)
+        temp = move_left(temp)
+        new = rotate_board(temp, 1)
+    elif direction == 'right':
+        new = np.fliplr(move_left(np.fliplr(b)))
+    elif direction == 'left':
+        new = move_left(b)
+    else:
+        return b.copy()
+
+    if add_tile_flag and not np.array_equal(prev, new):
+        add_new_tile(new)
+    return new
+
+
+# ----------------------------
+# Evaluation Heuristics
+# ----------------------------
+def count_empty(b):
+    return int(np.sum(b == 0))
+
+def max_tile(b):
+    return int(np.max(b))
+
+def smoothness(b):
+    s = 0
+    for i in range(4):
+        for j in range(3):
+            s -= abs(int(b[i,j]) - int(b[i,j+1]))
+    for j in range(4):
+        for i in range(3):
+            s -= abs(int(b[i,j]) - int(b[i+1,j]))
+    return s
+
+def monotonicity(b):
+    sc = 0
+    for row in b:
+        sc += sum([1 if row[i] >= row[i+1] else 0 for i in range(3)])
+    for col in b.T:
+        sc += sum([1 if col[i] >= col[i+1] else 0 for i in range(3)])
+    return sc
+
+def evaluate_board(b):
+    w_empty = 2.7
+    w_max = 1.5
+    w_smooth = 0.08
+    w_mono = 0.9
+    e = count_empty(b)
+    mx = max_tile(b) if np.any(b) else 1
+    sm = smoothness(b)
+    mo = monotonicity(b)
+    return float((w_empty * e) + (w_max * math.log2(mx)) + (w_smooth * sm) + (w_mono * mo))
+
+
+# ----------------------------
+# Expectimax Algorithm
+# ----------------------------
+def simulate_after_move(b, move_dir):
+    before = b.copy()
+    after = move_board(b.copy(), move_dir, add_tile_flag=False)
+    moved = not np.array_equal(before, after)
+    merged = np.any(after > before)
+    if not moved and not merged:
+        return None
+    return after
+
+
+def expectimax(b, depth, is_player):
+    if depth == 0 or not np.any(b == 0):
+        return evaluate_board(b)
+
+    if is_player:
+        best = -float('inf')
+        for mv in ['up','down','left','right']:
+            nb = simulate_after_move(b, mv)
+            if nb is None:
+                continue
+            val = expectimax(nb, depth - 1, False)
+            best = max(best, val)
+        return best if best != -float('inf') else evaluate_board(b)
+    else:
+        empties = list(zip(*np.where(b == 0)))
+        if not empties:
+            return evaluate_board(b)
+        total = 0
+        for (r,c) in empties:
+            for val, p in [(2,0.9),(4,0.1)]:
+                nb = b.copy()
+                nb[r,c] = val
+                total += p * expectimax(nb, depth - 1, True)
+        return total / len(empties)
+
+
+def get_move_with_explanation(b, depth=2):
+    move_scores, details = {}, {}
+    for mv in ['up','down','left','right']:
+        nb = simulate_after_move(b, mv)
+        if nb is None:
+            continue
+        sc = expectimax(nb, depth - 1, False)
+        move_scores[mv] = sc
+        details[mv] = {
+            "empty_after": count_empty(nb),
+            "max_after": max_tile(nb),
+            "smooth_after": smoothness(nb),
+            "monotonicity_after": monotonicity(nb),
+            "eval": evaluate_board(nb)
+        }
+
+    if not move_scores:
+        return None, {}, "No valid moves available."
+
+    best = max(move_scores, key=lambda k: move_scores[k])
+    f = details[best]
+    explanation = (
+        f"🤖 Expected utility: {round(move_scores[best], 2)} | "
+        f"Empty tiles after move: {f['empty_after']} | "
+        f"Max tile after move: {f['max_after']} | "
+        f"Monotonicity: {f['monotonicity_after']} | "
+        f"Reason: Chose move with highest expected utility."
+    )
+    return best, move_scores, explanation
+
+
+# ----------------------------
+# Helper
+# ----------------------------
+def has_valid_move(b):
+    for mv in ['up','down','left','right']:
+        if simulate_after_move(b, mv) is not None:
+            return True
+    return False
+
+
+# ----------------------------
+# Flask Routes
+# ----------------------------
 @app.route('/')
 def home():
     return render_template('index.html')
 
+
+@app.route('/get_board')
+def get_board():
+    return jsonify({"board": board.tolist(), "score": score})
+
+
+@app.route('/move/<direction>')
+def move_direction(direction):
+    global board
+    board[:] = move_board(board, direction)
+    game_over = not has_valid_move(board)
+    return jsonify({"board": board.tolist(), "score": score, "game_over": game_over})
+
+
+@app.route('/ai_suggest', methods=['POST'])
+def ai_suggest():
+    data = request.get_json()
+    b = np.array(data.get("board", []))
+    depth = int(data.get("depth", 2))
+
+    best_move, move_scores, explanation = get_move_with_explanation(b, depth)
+    return jsonify({
+        "best_move": best_move,
+        "scores": move_scores,
+        "explanation": explanation
+    })
+
+
+# ----------------------------
+# Run
+# ----------------------------
 if __name__ == '__main__':
+    add_new_tile(board)
+    add_new_tile(board)
     app.run(debug=True)
