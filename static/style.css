@@ -94,7 +94,7 @@ h1 {
   margin: 15px 0;
 }
 
-.btn-up, .btn-down, .btn-left,.btn-reset {
+.btn-up, .btn-down, .btn-reset {
   width: 85px;
   height: 55px;
   background: var(--button-bg);
@@ -107,7 +107,7 @@ h1 {
   transition: all 0.2s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
-.btn-right{
+.btn-right,.btn-left{
   width: 85px;
   height: 55px;
   background: var(--button-bg);
