@@ -6,17 +6,13 @@ import numpy as np, random, math
 app = Flask(__name__)
 CORS(app)
 
-# ----------------------------
 # Game state
-# ----------------------------
 board = np.zeros((4, 4), dtype=int)
 score = 0
 
-# ----------------------------
 # Tile mechanics
-# ----------------------------
 def add_new_tile(b):
-    empties = list(zip(*np.where(b == 0)))
+    empties = list(zip(*np.where(b==0)))
     if empties:
         r, c = random.choice(empties)
         b[r][c] = 2 if random.random() < 0.9 else 4
@@ -69,9 +65,8 @@ def move_board(b, direction, add_tile_flag=True):
     return new
 
 
-# ----------------------------
+
 # Evaluation Heuristics
-# ----------------------------
 def count_empty(b):
     return int(np.sum(b == 0))
 
@@ -108,9 +103,7 @@ def evaluate_board(b):
     return float((w_empty * e) + (w_max * math.log2(mx)) + (w_smooth * sm) + (w_mono * mo))
 
 
-# ----------------------------
 # Expectimax Algorithm
-# ----------------------------
 def simulate_after_move(b, move_dir):
     before = b.copy()
     after = move_board(b.copy(), move_dir, add_tile_flag=False)
@@ -178,9 +171,7 @@ def get_move_with_explanation(b, depth=2):
     return best, move_scores, explanation
 
 
-# ----------------------------
 # Helper
-# ----------------------------
 def has_valid_move(b):
     for mv in ['up','down','left','right']:
         if simulate_after_move(b, mv) is not None:
@@ -188,9 +179,7 @@ def has_valid_move(b):
     return False
 
 
-# ----------------------------
 # Flask Routes
-# ----------------------------
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -223,9 +212,7 @@ def ai_suggest():
     })
 
 
-# ----------------------------
 # Run
-# ----------------------------
 if __name__ == '__main__':
     add_new_tile(board)
     add_new_tile(board)

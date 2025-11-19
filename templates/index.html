@@ -9,28 +9,33 @@
 <body>
   <h1>2048</h1>
 
-  <!-- Scoreboard -->
-  <div class="score-board">
-    <div class="score-box">
-      <p>Score</p>
-      <span id="score">0</span>
+  <div class="game-container">
+    <!-- Left Controls -->
+    <div class="control-panel">
+      <div class="score-box">
+        <p>Score</p>
+        <span id="score">0</span>
+      </div>
+      
+      <div class="direction-buttons">
+        <button onclick="move('up')" class="btn-up">⬆</button>
+        <div class="middle-buttons">
+          <button onclick="move('left')" class="btn-left">⬅︎</button>
+          <button onclick="move('right')" class="btn-right">➡︎</button>
+        </div>
+        <button onclick="move('down')" class="btn-down">⬇</button>
+        <button onclick="resetGame()" class="btn-reset">Reset</button>
+      </div>
     </div>
 
-    <div class="buttons">
-      <button onclick="move('up')">Up</button>
-      <button onclick="move('left')">Left</button>
-      <button onclick="move('right')">Right</button>
-      <button onclick="move('down')">Down</button>
-      <button onclick="resetGame()">Reset</button>
+    <!-- Center Game Board -->
+    <div class="center-panel">
+      <div class="board" id="board"></div>
+      <p class="note">Use arrow keys or buttons. New tiles appear after valid moves.</p>
     </div>
-  </div>
 
-  <!-- Game Board -->
-  <div class="board" id="board"></div>
-  <p class="note">Use arrow keys or buttons. New tiles appear after valid moves.</p>
-
-  <!-- AI Advisor Panel -->
-  <div id="ai-panel" class="ai-container">
+    <!-- Right AI Panel -->
+    <div id="ai-panel" class="ai-container">
     <h2 class="ai-title">🤖 AI Game Advisor</h2>
     
     <div class="ai-best-move" id="ai-best">
