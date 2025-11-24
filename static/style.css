@@ -4,7 +4,6 @@
   --button-bg: #0f3460;
   --button-hover: #533483;
   --text-light: #e94560;
-  --text-dark: #1a1a2e;
   --score-bg: #0f3460;
   --board-bg: #16213e;
   --tile-bg: #1a1a2e;
@@ -39,6 +38,8 @@ h1 {
   border-radius: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
+
+/* -------- Left control panel -------- */
 
 .control-panel {
   width: 220px;
@@ -107,7 +108,8 @@ h1 {
   transition: all 0.2s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
-.btn-right,.btn-left{
+
+.btn-left, .btn-right {
   width: 85px;
   height: 55px;
   background: var(--button-bg);
@@ -121,7 +123,11 @@ h1 {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.btn-up:hover, .btn-down:hover, .btn-left:hover, .btn-right:hover, .btn-reset:hover {
+.btn-up:hover,
+.btn-down:hover,
+.btn-left:hover,
+.btn-right:hover,
+.btn-reset:hover {
   background: var(--button-hover);
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
@@ -133,37 +139,7 @@ h1 {
   background: var(--text-light);
 }
 
-.buttons button {
-  background: linear-gradient(145deg, #a48b72, #8f7a66);
-  color: #fff8ef;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 10px;
-  font-size: 16px;
-  cursor: pointer;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  box-shadow: 0 4px 0 #7b6654, 0 6px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease-in-out;
-  transform: translateY(0);
-}
-
-.buttons button:hover {
-  background: linear-gradient(145deg, #b99d81, #9c846c);
-  box-shadow: 0 5px 0 #7b6654, 0 8px 14px rgba(0, 0, 0, 0.2);
-  transform: translateY(-2px);
-}
-
-.buttons button:active {
-  background: linear-gradient(145deg, #8f7a66, #7b6654);
-  box-shadow: 0 2px 0 #6b5647 inset;
-  transform: translateY(2px);
-}
-
-.buttons button:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(143, 122, 102, 0.4);
-}
+/* -------- Center board -------- */
 
 .center-panel {
   padding: 25px;
@@ -195,16 +171,10 @@ h1 {
   font-size: 32px;
   font-weight: bold;
   border-radius: 12px;
-  color: #000000ff;
-  transition: all 0.2s ease;
+  color: #000;
+  transition: transform 0.15s ease-in-out, background 0.15s, color 0.15s;
   box-shadow: inset 0 0 10px rgba(233, 69, 96, 0.1);
   border: 2px solid rgba(233, 69, 96, 0.1);
-}
-/* --- Tile Animations --- */
-
-/* Smooth position change */
-.tile {
-  transition: transform 0.15s ease-in-out, background 0.15s, color 0.15s;
 }
 
 /* New tile pop animation */
@@ -213,7 +183,6 @@ h1 {
   60% { transform: scale(1.1); }
   100% { transform: scale(1); }
 }
-
 .new-tile {
   animation: pop 0.2s ease-out;
 }
@@ -224,27 +193,24 @@ h1 {
   50% { transform: scale(1.2); }
   100% { transform: scale(1); }
 }
-
 .merged {
   animation: mergePulse 0.2s ease-in-out;
 }
 
 .note {
-  color: #776e65;
+  color: var(--text-light);
   font-size: 14px;
+  margin-top: 15px;
+  opacity: 0.8;
 }
 
-/* --- AI Panel Styling --- */
-.center-panel {
-  flex-grow: 0;
-  flex-shrink: 0;
-}
+/* -------- AI panel (right) -------- */
 
 .ai-container {
   background: var(--board-bg);
   border-radius: 15px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  width: 300px;
+  width: 320px;
   padding: 25px;
   text-align: center;
   color: #fff;
@@ -296,13 +262,11 @@ h1 {
   width: 90%;
   margin: 0 auto;
   border-collapse: collapse;
-  background: transparent;
-  border-radius: 8px;
-  overflow: hidden;
 }
 
-.ai-table th, .ai-table td {
-  padding: 10px;
+.ai-table th,
+.ai-table td {
+  padding: 8px 10px;
   border-bottom: 1px solid rgba(233, 69, 96, 0.2);
 }
 
@@ -322,45 +286,74 @@ h1 {
 .ai-explanation {
   background: var(--button-bg);
   color: #fff;
-  padding: 15px;
+  padding: 12px;
   border-radius: 12px;
   margin-bottom: 15px;
   font-size: 14px;
   line-height: 1.6;
   text-align: left;
-  max-width: 380px;
-  margin-left: auto;
-  margin-right: auto;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.ai-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ai-modes button {
+  background: var(--button-bg);
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-modes button:hover {
+  background: var(--button-hover);
+  transform: translateY(-1px);
+}
+
+#ai-insight {
+  min-height: 40px;
+  font-size: 14px;
+  color: #fff;
+  white-space: pre-line;
+  margin-bottom: 10px;
 }
 
 .ai-controls {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 15px;
-  margin-top: 20px;
+  gap: 12px;
+  margin-top: 10px;
 }
 
 .ai-controls input {
   width: 70px;
-  padding: 8px;
+  padding: 6px;
   text-align: center;
   border-radius: 8px;
   border: 2px solid var(--text-light);
   background: var(--button-bg);
   color: #fff;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .ai-controls button {
   background: var(--text-light);
   color: #fff;
   border: none;
-  padding: 12px 20px;
+  padding: 10px 16px;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -371,11 +364,4 @@ h1 {
   background: var(--button-hover);
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-}
-
-.note {
-  color: var(--text-light);
-  font-size: 14px;
-  margin-top: 15px;
-  opacity: 0.8;
 }

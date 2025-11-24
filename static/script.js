@@ -1,6 +1,11 @@
+/* --------------------------
+   GAME VARIABLES & INIT
+---------------------------*/
+
 const boardSize = 4;
 let board = [];
 let score = 0;
+let aiMode = "suggestion";   // "suggestion" | "insight" | "coach"
 
 function initBoard() {
   board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
@@ -9,6 +14,10 @@ function initBoard() {
   addNewTile();
   renderBoard();
 }
+
+/* --------------------------
+   GAME FUNCTIONS
+---------------------------*/
 
 function addNewTile() {
   const emptyCells = [];
@@ -22,33 +31,6 @@ function addNewTile() {
     board[r][c] = Math.random() < 0.9 ? 2 : 4;
   }
 }
-
-function renderBoard(newTiles = [], mergedTiles = []) {
-  const boardDiv = document.getElementById("board");
-  boardDiv.innerHTML = "";
-
-  board.forEach((row, r) => {
-    row.forEach((value, c) => {
-      const div = document.createElement("div");
-      div.className = "tile";
-      div.textContent = value === 0 ? "" : value;
-      div.style.background = getColor(value);
-
-      // Apply animation for new or merged tiles
-      if (newTiles.some(([nr, nc]) => nr === r && nc === c)) {
-        div.classList.add("new-tile");
-      }
-      if (mergedTiles.some(([mr, mc]) => mr === r && mc === c)) {
-        div.classList.add("merged");
-      }
-
-      boardDiv.appendChild(div);
-    });
-  });
-
-  document.getElementById("score").textContent = score;
-}
-
 
 function getColor(value) {
   const colors = {
@@ -68,71 +50,81 @@ function getColor(value) {
   return colors[value] || "#3c3a32";
 }
 
-function moveLeft(row) {
-  let filtered = row.filter(v => v !== 0);
-  for (let i = 0; i < filtered.length - 1; i++) {
-    if (filtered[i] === filtered[i + 1]) {
-      filtered[i] *= 2;
-      score += filtered[i];
-      filtered[i + 1] = 0;
-    }
-  }
-  filtered = filtered.filter(v => v !== 0);
-  while (filtered.length < boardSize) filtered.push(0);
-  return filtered;
+function renderBoard(newTiles = [], mergedTiles = []) {
+  const boardDiv = document.getElementById("board");
+  boardDiv.innerHTML = "";
+
+  board.forEach((row, r) => {
+    row.forEach((value, c) => {
+      const div = document.createElement("div");
+      div.className = "tile";
+      div.textContent = value === 0 ? "" : value;
+      div.style.background = getColor(value);
+
+      if (newTiles.some(([nr, nc]) => nr === r && nc === c)) div.classList.add("new-tile");
+      if (mergedTiles.some(([mr, mc]) => mr === r && mc === c)) div.classList.add("merged");
+
+      boardDiv.appendChild(div);
+    });
+  });
+
+  document.getElementById("score").textContent = score;
 }
 
-function rotateBoard(b) {
-  return b[0].map((_, i) => b.map(row => row[i]));
+/* --------------------------
+   MOVEMENT + MERGING LOGIC
+---------------------------*/
+
+function moveLeftOnce(row, rowIndex, mergedTiles) {
+  let filtered = row.filter(v => v !== 0);
+  let result = [];
+
+  for (let i = 0; i < filtered.length; i++) {
+    if (filtered[i] === filtered[i + 1]) {
+      const mergedValue = filtered[i] * 2;
+      score += mergedValue;
+      result.push(mergedValue);
+      mergedTiles.push([rowIndex, result.length - 1]);
+      i++;
+    } else {
+      result.push(filtered[i]);
+    }
+  }
+  while (result.length < boardSize) result.push(0);
+  return result;
 }
+
 function move(direction) {
   let moved = false;
-  let newBoard = JSON.parse(JSON.stringify(board)); // deep copy
+  let newBoard = JSON.parse(JSON.stringify(board));
   const mergedTiles = [];
   const newTiles = [];
 
-  const moveLeftOnce = (row, rowIndex) => {
-    let filtered = row.filter(v => v !== 0);
-    let result = [];
-    for (let i = 0; i < filtered.length; i++) {
-      if (filtered[i] === filtered[i + 1]) {
-        const mergedValue = filtered[i] * 2;
-        score += mergedValue;
-        result.push(mergedValue);
-        mergedTiles.push([rowIndex, result.length - 1]);
-        i++;
-      } else {
-        result.push(filtered[i]);
-      }
-    }
-    while (result.length < boardSize) result.push(0);
-    return result;
-  };
-
-  const rotateClockwise = (b) => b[0].map((_, i) => b.map(row => row[i]).reverse());
-  const rotateCounterClockwise = (b) =>
+  const rotateClockwise = b => b[0].map((_, i) => b.map(row => row[i]).reverse());
+  const rotateCounterClockwise = b =>
     b[0].map((_, i) => b.map(row => row[row.length - 1 - i]));
 
   if (direction === "up") {
-    newBoard = rotateCounterClockwise(newBoard);
-    newBoard = newBoard.map((row, i) => moveLeftOnce(row, i));
+    newBoard = rotateCounterClockwise(newBoard).map((row, i) =>
+      moveLeftOnce(row, i, mergedTiles)
+    );
     newBoard = rotateClockwise(newBoard);
   } else if (direction === "down") {
-    newBoard = rotateClockwise(newBoard);
-    newBoard = newBoard.map((row, i) => moveLeftOnce(row, i));
+    newBoard = rotateClockwise(newBoard).map((row, i) =>
+      moveLeftOnce(row, i, mergedTiles)
+    );
     newBoard = rotateCounterClockwise(newBoard);
   } else if (direction === "left") {
-    newBoard = newBoard.map((row, i) => moveLeftOnce(row, i));
+    newBoard = newBoard.map((row, i) => moveLeftOnce(row, i, mergedTiles));
   } else if (direction === "right") {
     newBoard = newBoard.map(row => row.reverse());
-    newBoard = newBoard.map((row, i) => moveLeftOnce(row, i));
+    newBoard = newBoard.map((row, i) => moveLeftOnce(row, i, mergedTiles));
     newBoard = newBoard.map(row => row.reverse());
   }
 
   if (JSON.stringify(board) !== JSON.stringify(newBoard)) {
     board = newBoard;
 
-    // Track where new tile is added
     const beforeAdd = JSON.parse(JSON.stringify(board));
     addNewTile();
     for (let r = 0; r < boardSize; r++) {
@@ -147,12 +139,15 @@ function move(direction) {
     moved = true;
   }
 
+  // 🔹 Trigger coach feedback after a valid move
+  if (moved && aiMode === "coach") {
+    requestAICoaching(direction);
+  }
+
   if (moved && isGameOver()) {
     setTimeout(() => alert("Game Over!"), 200);
   }
 }
-
-
 
 function isGameOver() {
   for (let i = 0; i < boardSize; i++) {
@@ -168,90 +163,127 @@ function isGameOver() {
 function resetGame() {
   initBoard();
 }
+
+/* --------------------------
+   AI HELPERS
+---------------------------*/
+
+function getCurrentBoard() {
+  return board.map(row => row.slice());
+}
+
+/* --------------------------
+   MODE SWITCHING
+---------------------------*/
+
+function setMode(mode) {
+  aiMode = mode;
+  const insightEl = document.getElementById("ai-insight");
+  insightEl.innerText = "AI Mode switched to: " + mode.toUpperCase();
+}
+
+/* --------------------------
+   AI SUGGESTION MODE
+---------------------------*/
+
 async function requestAISuggestion() {
-  const depth = document.getElementById("ai-depth").value || 3;
-  const aiBest = document.getElementById("ai-best").querySelector(".move-text");
-  const aiScoresBody = document.querySelector(".ai-table tbody");
-  const aiExplanation = document.getElementById("ai-expl");
+  if (aiMode !== "suggestion") return;
 
-  aiBest.textContent = "…"; // loading state
-  aiExplanation.textContent = "Analyzing possible moves... please wait.";
-document.getElementById("get-ai").addEventListener("click", async () => {
-  const depth = parseInt(document.getElementById("ai-depth").value);
+  const depth = parseInt(document.getElementById("ai-depth").value) || 2;
+  const boardState = getCurrentBoard();
 
-  // ✅ Get current board
-  const tiles = Array.from(document.querySelectorAll(".tile")).map(t => parseInt(t.textContent) || 0);
-  const board = [];
-  for (let i = 0; i < 4; i++) {
-    board.push(tiles.slice(i * 4, i * 4 + 4));
-  }
-
-  // ✅ Send to backend
   const res = await fetch("/ai_suggest", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ board, depth })
+    body: JSON.stringify({ board: boardState, depth })
   });
-  
+
   const data = await res.json();
 
-  // ✅ Display suggestion
-  document.querySelector("#ai-best .move-text").textContent = data.best_move.toUpperCase();
+  document.querySelector("#ai-best .move-text").textContent =
+    data.best_move ? data.best_move.toUpperCase() : "-";
+
   const tbody = document.querySelector("#ai-scores tbody");
   tbody.innerHTML = "";
+
   for (const [move, score] of Object.entries(data.scores)) {
     const row = document.createElement("tr");
     row.innerHTML = `<td>${move.toUpperCase()}</td><td>${score.toFixed(2)}</td>`;
     tbody.appendChild(row);
   }
+
   document.getElementById("ai-expl").textContent = data.explanation;
-});
-
-  try {
-    const res = await fetch(`/ai_suggest?depth=${depth}`);
-    const data = await res.json();
-
-    aiBest.textContent = data.best_move ? data.best_move.toUpperCase() : "NONE";
-
-    // Update scores
-    aiScoresBody.innerHTML = "";
-    if (data.move_scores) {
-      Object.entries(data.move_scores).forEach(([move, score]) => {
-        const row = document.createElement("tr");
-        row.innerHTML = `<td>${move.toUpperCase()}</td><td>${score}</td>`;
-        aiScoresBody.appendChild(row);
-      });
-    }
-
-    // Add explanation text
-    aiExplanation.textContent = data.explanation
-      ? `🤖 ${data.explanation}`
-      : "No valid moves found.";
-  } catch (err) {
-    aiBest.textContent = "-";
-    aiExplanation.textContent = "⚠️ Failed to fetch AI suggestion. Please retry.";
-  }
 }
 
-document.getElementById("get-ai").addEventListener("click", requestAISuggestion);
+/* --------------------------
+   INSIGHT-ONLY MODE
+---------------------------*/
 
+async function requestAIInsight() {
+  const depth = parseInt(document.getElementById("ai-depth").value) || 2;
+  const boardState = getCurrentBoard();
 
-// Keyboard controls
-document.addEventListener("keydown", (e) => {
-  switch (e.key) {
-    case "ArrowUp":
-      move("up");
-      break;
-    case "ArrowDown":
-      move("down");
-      break;
-    case "ArrowLeft":
-      move("left");
-      break;
-    case "ArrowRight":
-      move("right");
-      break;
+  const res = await fetch("/ai_insight", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ board: boardState, depth })
+  });
+
+  const data = await res.json();
+  const insightEl = document.getElementById("ai-insight");
+  insightEl.innerText = "Insights:\n- " + data.insights.join("\n- ");
+}
+
+/* --------------------------
+   COACH MODE
+---------------------------*/
+
+async function requestAICoaching(playerMove) {
+  const depth = 2;
+
+  const res = await fetch("/ai_suggest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      board: getCurrentBoard(),
+      depth,
+      playerMove
+    })
+  });
+
+  const data = await res.json();
+
+  // Expect backend to send something like { coach_msg: "...", best_move: "left" }
+  const msg = data.coach_msg
+    ? data.coach_msg
+    : (data.best_move
+        ? `Coach says: A better alternative could have been ${data.best_move.toUpperCase()}.`
+        : "Coach says: No clearly better alternative from this position.");
+
+  document.getElementById("ai-insight").innerText = msg;
+}
+
+/* --------------------------
+   EVENT LISTENERS
+---------------------------*/
+
+document.getElementById("get-ai").addEventListener("click", () => {
+  if (aiMode === "suggestion") {
+    requestAISuggestion();
+  } else if (aiMode === "insight") {
+    requestAIInsight();
   }
 });
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp") move("up");
+  if (e.key === "ArrowDown") move("down");
+  if (e.key === "ArrowLeft") move("left");
+  if (e.key === "ArrowRight") move("right");
+});
+
+/* --------------------------
+   START GAME
+---------------------------*/
 
 initBoard();

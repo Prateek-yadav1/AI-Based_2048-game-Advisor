@@ -1,149 +1,143 @@
-# app.py
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
-import numpy as np, random, math
+import numpy as np
+import random
+import math
 
 app = Flask(__name__)
 CORS(app)
 
-# Game state
-board = np.zeros((4, 4), dtype=int)
-score = 0
+# ----------------------------
+# 2048 MOVE LOGIC(FOR AI SIMULATION)
+# ----------------------------
 
-# Tile mechanics
-def add_new_tile(b):
-    empties = list(zip(*np.where(b==0)))
-    if empties:
-        r, c = random.choice(empties)
-        b[r][c] = 2 if random.random() < 0.9 else 4
-
-
-def move_left(b):
-    global score
-    new = np.zeros_like(b)
+def move_left(board):
+    """Return a new board after moving LEFT (no tile spawning, no score)."""
+    new_board = np.zeros_like(board)
     for i in range(4):
-        row = [x for x in b[i] if x != 0]
-        merged = []
+        row = [x for x in board[i] if x != 0]
+        result = []
         j = 0
         while j < len(row):
             if j + 1 < len(row) and row[j] == row[j + 1]:
-                val = row[j] * 2
-                score += val
-                merged.append(val)
+                result.append(row[j] * 2)
                 j += 2
             else:
-                merged.append(row[j])
+                result.append(row[j])
                 j += 1
-        merged += [0] * (4 - len(merged))
-        new[i] = merged
-    return new
-
+        while len(result) < 4:
+            result.append(0)
+        new_board[i] = result
+    return new_board
 
 def rotate_board(b, k):
     return np.rot90(b, k)
 
-
-def move_board(b, direction, add_tile_flag=True):
-    prev = b.copy()
-    if direction == 'up':
-        temp = rotate_board(b, 1)
-        temp = move_left(temp)
-        new = rotate_board(temp, -1)
-    elif direction == 'down':
-        temp = rotate_board(b, -1)
-        temp = move_left(temp)
-        new = rotate_board(temp, 1)
-    elif direction == 'right':
-        new = np.fliplr(move_left(np.fliplr(b)))
-    elif direction == 'left':
-        new = move_left(b)
+def move_board(b, direction):
+    """Simulate a move in given direction. No new tile is added."""
+    if direction == "up":
+        tmp = rotate_board(b, 1)
+        moved = move_left(tmp)
+        return rotate_board(moved, -1)
+    elif direction == "down":
+        tmp = rotate_board(b, -1)
+        moved = move_left(tmp)
+        return rotate_board(moved, 1)
+    elif direction == "left":
+        return move_left(b)
+    elif direction == "right":
+        return np.fliplr(move_left(np.fliplr(b)))
     else:
         return b.copy()
 
-    if add_tile_flag and not np.array_equal(prev, new):
-        add_new_tile(new)
-    return new
-
-
-
-# Evaluation Heuristics
-def count_empty(b):
-    return int(np.sum(b == 0))
-
-def max_tile(b):
-    return int(np.max(b))
-
-def smoothness(b):
-    s = 0
-    for i in range(4):
-        for j in range(3):
-            s -= abs(int(b[i,j]) - int(b[i,j+1]))
-    for j in range(4):
-        for i in range(3):
-            s -= abs(int(b[i,j]) - int(b[i+1,j]))
-    return s
-
-def monotonicity(b):
-    sc = 0
-    for row in b:
-        sc += sum([1 if row[i] >= row[i+1] else 0 for i in range(3)])
-    for col in b.T:
-        sc += sum([1 if col[i] >= col[i+1] else 0 for i in range(3)])
-    return sc
-
-def evaluate_board(b):
-    w_empty = 2.7
-    w_max = 1.5
-    w_smooth = 0.08
-    w_mono = 0.9
-    e = count_empty(b)
-    mx = max_tile(b) if np.any(b) else 1
-    sm = smoothness(b)
-    mo = monotonicity(b)
-    return float((w_empty * e) + (w_max * math.log2(mx)) + (w_smooth * sm) + (w_mono * mo))
-
-
-# Expectimax Algorithm
-def simulate_after_move(b, move_dir):
+def simulate_after_move(b, direction):
+    """Return board after move OR None if nothing changes (invalid move)."""
     before = b.copy()
-    after = move_board(b.copy(), move_dir, add_tile_flag=False)
+    after = move_board(b.copy(), direction)
     moved = not np.array_equal(before, after)
     merged = np.any(after > before)
     if not moved and not merged:
         return None
     return after
 
+# ----------------------------
+# HEURISTIC EVALUATION
+# ----------------------------
 
-def expectimax(b, depth, is_player):
-    if depth == 0 or not np.any(b == 0):
-        return evaluate_board(b)
+def count_empty(b):
+    return int(np.sum(b == 0))
+
+def max_tile(b):
+    return int(np.max(b)) if np.any(b) else 0
+
+def smoothness(b):
+    s = 0
+    for i in range(4):
+        for j in range(3):
+            s -= abs(int(b[i, j]) - int(b[i, j + 1]))
+    for j in range(4):
+        for i in range(3):
+            s -= abs(int(b[i, j]) - int(b[i + 1, j]))
+    return s
+
+def monotonicity(b):
+    sc = 0
+    for row in b:
+        sc += sum(1 for i in range(3) if row[i] >= row[i + 1])
+    for col in b.T:
+        sc += sum(1 for i in range(3) if col[i] >= col[i + 1])
+    return sc
+
+def evaluate_board(b):
+    # Weights can be tuned
+    w_empty = 2.7
+    w_max = 1.5
+    w_smooth = 0.08
+    w_mono = 0.9
+
+    e = count_empty(b)
+    mx = max_tile(b) if max_tile(b) > 0 else 1
+    sm = smoothness(b)
+    mo = monotonicity(b)
+
+    return float(w_empty * e + w_max * math.log2(mx) + w_smooth * sm + w_mono * mo)
+
+# ----------------------------
+# EXPECTIMAX
+# ----------------------------
+
+def expectimax(board, depth, is_player):
+    if depth == 0 or not np.any(board == 0):
+        return evaluate_board(board)
 
     if is_player:
-        best = -float('inf')
-        for mv in ['up','down','left','right']:
-            nb = simulate_after_move(b, mv)
+        best = -float("inf")
+        for mv in ["up", "down", "left", "right"]:
+            nb = simulate_after_move(board, mv)
             if nb is None:
                 continue
             val = expectimax(nb, depth - 1, False)
-            best = max(best, val)
-        return best if best != -float('inf') else evaluate_board(b)
+            if val > best:
+                best = val
+        return best if best != -float("inf") else evaluate_board(board)
     else:
-        empties = list(zip(*np.where(b == 0)))
+        empties = list(zip(*np.where(board == 0)))
         if not empties:
-            return evaluate_board(b)
-        total = 0
-        for (r,c) in empties:
-            for val, p in [(2,0.9),(4,0.1)]:
-                nb = b.copy()
-                nb[r,c] = val
+            return evaluate_board(board)
+        total = 0.0
+        for (r, c) in empties:
+            for val, p in [(2, 0.9), (4, 0.1)]:
+                nb = board.copy()
+                nb[r, c] = val
                 total += p * expectimax(nb, depth - 1, True)
         return total / len(empties)
 
+def get_move_with_explanation(board, depth=2):
+    move_scores = {}
+    details = {}
 
-def get_move_with_explanation(b, depth=2):
-    move_scores, details = {}, {}
-    for mv in ['up','down','left','right']:
-        nb = simulate_after_move(b, mv)
+    for mv in ["up", "down", "left", "right"]:
+        nb = simulate_after_move(board, mv)
         if nb is None:
             continue
         sc = expectimax(nb, depth - 1, False)
@@ -153,67 +147,104 @@ def get_move_with_explanation(b, depth=2):
             "max_after": max_tile(nb),
             "smooth_after": smoothness(nb),
             "monotonicity_after": monotonicity(nb),
-            "eval": evaluate_board(nb)
+            "eval": evaluate_board(nb),
         }
 
     if not move_scores:
         return None, {}, "No valid moves available."
 
-    best = max(move_scores, key=lambda k: move_scores[k])
-    f = details[best]
+    best_move = max(move_scores, key=lambda m: move_scores[m])
+    f = details[best_move]
+
     explanation = (
-        f"🤖 Expected utility: {round(move_scores[best], 2)} | "
+        f"Expected utility: {round(move_scores[best_move], 2)} | "
         f"Empty tiles after move: {f['empty_after']} | "
         f"Max tile after move: {f['max_after']} | "
         f"Monotonicity: {f['monotonicity_after']} | "
-        f"Reason: Chose move with highest expected utility."
+        "Reason: Chose the move with the highest expected heuristic score."
     )
-    return best, move_scores, explanation
 
+    return best_move, move_scores, explanation
 
-# Helper
-def has_valid_move(b):
-    for mv in ['up','down','left','right']:
-        if simulate_after_move(b, mv) is not None:
-            return True
-    return False
+# ----------------------------
+# INSIGHT GENERATION (NO MOVE)
+# ----------------------------
 
+def generate_insights(board, depth=2):
+    insights = []
 
-# Flask Routes
-@app.route('/')
+    empty = count_empty(board)
+    mx = max_tile(board)
+    mono = monotonicity(board)
+
+    # General strategy hints
+    if empty <= 6:
+        insights.append("You should increase empty spaces; the board is getting crowded.")
+    else:
+        insights.append("Good job keeping enough empty spaces on the board.")
+
+    if mx < 128:
+        insights.append("Merging smaller tiles earlier will help you build higher tiles faster.")
+    elif mx >= 512 and empty <= 4:
+        insights.append("You should increase empty spaces before reaching larger tiles like 512+.")
+    else:
+        insights.append("Try to keep your highest tile in one corner to improve monotonicity.")
+
+    if mono < 6:
+        insights.append("Your board is not very monotonic; try to keep rows/columns in increasing or decreasing order.")
+    else:
+        insights.append("Good move! Your tile ordering is relatively monotonic.")
+
+    # Bonus: best-move based insight without revealing the move
+    best_move, move_scores, _ = get_move_with_explanation(board, depth)
+    if best_move is not None and move_scores:
+        insights.append("A more structured merging pattern would improve your long-term position.")
+
+    return insights
+
+# ----------------------------
+# FLASK ROUTES
+# ----------------------------
+
+@app.route("/")
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
-
-@app.route('/get_board')
-def get_board():
-    return jsonify({"board": board.tolist(), "score": score})
-
-
-@app.route('/move/<direction>')
-def move_direction(direction):
-    global board
-    board[:] = move_board(board, direction)
-    game_over = not has_valid_move(board)
-    return jsonify({"board": board.tolist(), "score": score, "game_over": game_over})
-
-
-@app.route('/ai_suggest', methods=['POST'])
+@app.route("/ai_suggest", methods=["POST"])
 def ai_suggest():
     data = request.get_json()
-    b = np.array(data.get("board", []))
+    board_state = np.array(data.get("board", []), dtype=int)
     depth = int(data.get("depth", 2))
 
-    best_move, move_scores, explanation = get_move_with_explanation(b, depth)
+    player_move = data.get("playerMove")
+
+    best_move, move_scores, explanation = get_move_with_explanation(board_state, depth)
+
+# Coach Logic
+    if player_move:
+       if best_move == player_move:
+          coach_msg = f"Good move! {player_move.upper()} was the optimal choice."
+       else:
+        coach_msg = f"A better alternative could have been {best_move.upper()}."
+    else:
+        coach_msg = ""
+
     return jsonify({
-        "best_move": best_move,
-        "scores": move_scores,
-        "explanation": explanation
+       "best_move": best_move,
+       "scores": move_scores,
+       "explanation": explanation,
+       "coach_msg": coach_msg
     })
 
 
-# Run
-if __name__ == '__main__':
-    add_new_tile(board)
-    add_new_tile(board)
+@app.route("/ai_insight", methods=["POST"])
+def ai_insight():
+    data = request.get_json()
+    board_state = np.array(data.get("board", []), dtype=int)
+    depth = int(data.get("depth", 2))
+
+    insights = generate_insights(board_state, depth)
+    return jsonify({"insights": insights})
+
+if __name__ == "__main__":
     app.run(debug=True)
